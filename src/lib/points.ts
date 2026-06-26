@@ -42,8 +42,8 @@ export function calculatePoints(
   const multiplier = STAGE_POINTS[match.stage]
 
   // Determine actual match winner
-  const actualWinner = match.result_a > match.result_b
-    ? match.team_a
+const actualWinner = match.result_a! > match.result_b!
+  ? match.team_a
     : match.result_b > match.result_a
     ? match.team_b
     : 'draw'
