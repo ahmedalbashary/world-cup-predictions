@@ -1,0 +1,28 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --pitch-900: #0a1f0f;
+  --pitch-800: #0f2d17;
+  --pitch-700: #1a3d22;
+  --gold-400: #f5c842;
+  --gold-500: #e6b800;
+}
+
+body {
+  background-color: var(--pitch-900);
+  color: #f1f5f9;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.font-display {
+  font-family: 'Bebas Neue', Impact, sans-serif;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--pitch-900); }
+::-webkit-scrollbar-thumb { background: var(--pitch-700); border-radius: 3px; }
