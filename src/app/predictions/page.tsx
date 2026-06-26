@@ -103,7 +103,8 @@ if (wasChanged) setChangedPredictions(prev => new Set(Array.from(prev).concat(ma
   }, [userId, matches, predictions])
 
   const stageMatches = matches.filter(m => m.stage === activeStage)
-const groups = Array.from(new Set(matches.filter(m => m.stage === 'group').map(m => m.group_name!))).sort()  const visibleMatches = activeStage === 'group'
+const groups = Array.from(new Set(matches.filter(m => m.stage === 'group').map(m => m.group_name!))).sort()
+  const visibleMatches = activeStage === 'group'
     ? stageMatches.filter(m => m.group_name === activeGroup)
     : stageMatches
 
