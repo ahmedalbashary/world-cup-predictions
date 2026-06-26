@@ -99,8 +99,7 @@ export default function PredictionsPage() {
 
     if (data) {
       setPredictions(prev => ({ ...prev, [matchId]: data }))
-      if (wasChanged) setChangedPredictions(prev => new Set([...prev, matchId]))
-    }
+if (wasChanged) setChangedPredictions(prev => new Set(Array.from(prev).concat(matchId)))    }
   }, [userId, matches, predictions])
 
   const stageMatches = matches.filter(m => m.stage === activeStage)
