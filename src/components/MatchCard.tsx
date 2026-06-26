@@ -42,8 +42,8 @@ export default function MatchCard({ match, prediction, onSave, wasChanged }: Pro
     setTimeout(() => setSaved(false), 2000)
   }
 
-  const pointsColor = (match.points_earned ?? 0) > 0 ? 'text-grass-400' : 'text-slate-500'
-
+const pointsColor = (prediction?.points_earned ?? 0) > 0 ? 'text-grass-400' : 'text-slate-500'
+  
   return (
     <div className={`bg-pitch-800 border rounded-xl p-4 transition-all
       ${isLocked ? 'border-pitch-700 opacity-80' : 'border-pitch-600 hover:border-gold-500/40'}`}>
