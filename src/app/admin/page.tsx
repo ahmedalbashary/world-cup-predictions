@@ -13,7 +13,7 @@ export default function AdminPage() {
   const [editing, setEditing] = useState<Record<number, { a: string; b: string; penWinner: string }>>({})
   const [saving, setSaving] = useState<number | null>(null)
   const [recalculating, setRecalculating] = useState(false)
-  const [activeStage, setActiveStage] = useState<Match['stage']>('group')
+  const [activeStage, setActiveStage] = useState<Match['stage']>('r32')
 
   const ADMIN_PW = process.env.NEXT_PUBLIC_ADMIN_PW || 'admin123'
 
@@ -42,7 +42,7 @@ export default function AdminPage() {
     const resultB = Number(ed.b)
     const isDraw = resultA === resultB
     const winner = isDraw ? 'draw' : resultA > resultB ? match.team_a : match.team_b
-    const penWinner = isDraw && match.stage !== 'group' ? ed.penWinner : null
+    const penWinner = isDraw ? ed.penWinner : null
 
     await supabase.from('matches').update({
       result_a: resultA,
@@ -97,9 +97,9 @@ export default function AdminPage() {
   }
 
   const stageMatches = matches.filter(m => m.stage === activeStage)
-  const stages: Match['stage'][] = ['group', 'r16', 'qf', 'sf', 'third', 'final']
+  const stages: Match['stage'][] = ['r32', 'r16', 'qf', 'sf', 'third', 'final']
   const stageLabels: Record<Match['stage'], string> = {
-    group: 'المجموعات', r16: 'دور 32', qf: 'ربع النهائي',
+    r32: 'دور 32', r16: 'دور 16', qf: 'ربع النهائي',
     sf: 'نصف النهائي', third: 'المركز 3', final: 'النهائي',
   }
 
@@ -164,7 +164,7 @@ export default function AdminPage() {
           {stageMatches.map(match => {
             const ed = editing[match.id] || { a: match.result_a?.toString() ?? '', b: match.result_b?.toString() ?? '', penWinner: match.penalty_winner ?? '' }
             const isDraw = Number(ed.a) === Number(ed.b)
-            const isKnockout = match.stage !== 'group'
+            const isKnockout = true // all stages are knockout
 
             return (
               <div key={match.id} className="bg-pitch-800 border border-pitch-700 rounded-xl p-4">
