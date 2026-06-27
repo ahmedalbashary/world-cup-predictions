@@ -44,8 +44,8 @@ export function calculatePoints(
   // Determine actual match winner
 const actualWinner = match.result_a! > match.result_b!
   ? match.team_a
-    : match.result_b > match.result_a
-    ? match.team_b
+: match.result_b! > match.result_a!
+  ? match.team_b
     : 'draw'
 
   // For knockout: actual winner considers penalty winner if draw
