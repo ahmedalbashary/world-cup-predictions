@@ -6,12 +6,12 @@ import Navbar from '@/components/Navbar'
 import MatchCard from '@/components/MatchCard'
 import type { Match, Prediction } from '@/lib/supabase'
 
-type Stage = 'group' | 'r16' | 'qf' | 'sf' | 'third' | 'final'
+type Stage = 'r32' | 'r16' | 'qf' | 'sf' | 'third' | 'final'
 
-const STAGE_ORDER: Stage[] = ['group', 'r16', 'qf', 'sf', 'third', 'final']
+const STAGE_ORDER: Stage[] = ['r32', 'r16', 'qf', 'sf', 'third', 'final']
 const STAGE_LABELS: Record<Stage, string> = {
-  group: 'دور المجموعات',
-  r16: 'دور الـ 32',
+  r32: 'دور الـ 32',
+  r16: 'دور الـ 16',
   qf: 'ربع النهائي',
   sf: 'نصف النهائي',
   third: 'المركز الثالث',
@@ -74,12 +74,12 @@ export default function PredictionsPage() {
     const match = matches.find(m => m.id === matchId)
     if (!match) return
 
-    // Check if group stage is over (any r16 match is locked/finished)
-    const groupStageOver = matches.some(m => m.stage === 'r16' && m.status !== 'upcoming')
+    // Check if r32 is over (any r16 match is locked/finished)
+    const r32Over = matches.some(m => m.stage === 'r16' && m.status !== 'upcoming')
 
-    // If changing a knockout prediction after group stage ended, mark as changed
+    // If changing a prediction after r32 ended, mark as changed
     const isChanging = !!predictions[matchId]
-    const wasChanged = isChanging && groupStageOver && match.stage !== 'group'
+    const wasChanged = isChanging && r32Over && match.stage !== 'r32'
 
     const upsertData = {
       user_id: userId,
@@ -99,11 +99,12 @@ export default function PredictionsPage() {
 
     if (data) {
       setPredictions(prev => ({ ...prev, [matchId]: data }))
-if (wasChanged) setChangedPredictions(prev => new Set(Array.from(prev).concat(matchId)))    }
+      if (wasChanged) setChangedPredictions(prev => new Set([...prev, matchId]))
+    }
   }, [userId, matches, predictions])
 
   const stageMatches = matches.filter(m => m.stage === activeStage)
-const groups = Array.from(new Set(matches.filter(m => m.stage === 'group').map(m => m.group_name!))).sort()
+  const groups = [...new Set(matches.filter(m => m.stage === 'group').map(m => m.group_name!))].sort()
   const visibleMatches = activeStage === 'group'
     ? stageMatches.filter(m => m.group_name === activeGroup)
     : stageMatches
