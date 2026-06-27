@@ -19,13 +19,13 @@ export default function MatchCard({ match, prediction, onSave, wasChanged }: Pro
   const [saved, setSaved] = useState(false)
 
   const isLocked = match.status === 'locked' || match.status === 'finished'
-  const isKnockout = match.stage !== 'group'
+  const isKnockout = true // all stages are knockout
   const isDraw = Number(predA) === Number(predB)
   const hasResult = match.result_a !== null && match.result_b !== null
 
   const stageLabel: Record<Match['stage'], string> = {
-    group: `المجموعة ${match.group_name}`,
-    r16: 'دور الـ 32',
+    r32: 'دور الـ 32',
+    r16: 'دور الـ 16',
     qf: 'ربع النهائي',
     sf: 'نصف النهائي',
     third: 'المركز الثالث',
@@ -42,8 +42,8 @@ export default function MatchCard({ match, prediction, onSave, wasChanged }: Pro
     setTimeout(() => setSaved(false), 2000)
   }
 
-const pointsColor = (prediction?.points_earned ?? 0) > 0 ? 'text-grass-400' : 'text-slate-500'
-  
+  const pointsColor = (match.points_earned ?? 0) > 0 ? 'text-grass-400' : 'text-slate-500'
+
   return (
     <div className={`bg-pitch-800 border rounded-xl p-4 transition-all
       ${isLocked ? 'border-pitch-700 opacity-80' : 'border-pitch-600 hover:border-gold-500/40'}`}>
