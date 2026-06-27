@@ -25,8 +25,7 @@ export default function PredictionsPage() {
   const [matches, setMatches] = useState<Match[]>([])
   const [predictions, setPredictions] = useState<Record<number, Prediction>>({})
   const [changedPredictions, setChangedPredictions] = useState<Set<number>>(new Set())
-  const [activeStage, setActiveStage] = useState<Stage>('group')
-  const [activeGroup, setActiveGroup] = useState('A')
+  const [activeStage, setActiveStage] = useState<Stage>('r32')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -48,7 +47,6 @@ export default function PredictionsPage() {
         setPredictions(predMap)
       }
 
-      // Track which predictions were changed (was_changed = true)
       const { data: changedData } = await supabase
         .from('predictions')
         .select('match_id')
@@ -70,14 +68,10 @@ export default function PredictionsPage() {
     predWinner?: string
   ) => {
     if (!userId) return
-
     const match = matches.find(m => m.id === matchId)
     if (!match) return
 
-    // Check if r32 is over (any r16 match is locked/finished)
     const r32Over = matches.some(m => m.stage === 'r16' && m.status !== 'upcoming')
-
-    // If changing a prediction after r32 ended, mark as changed
     const isChanging = !!predictions[matchId]
     const wasChanged = isChanging && r32Over && match.stage !== 'r32'
 
@@ -99,15 +93,12 @@ export default function PredictionsPage() {
 
     if (data) {
       setPredictions(prev => ({ ...prev, [matchId]: data }))
-      if (wasChanged) setChangedPredictions(prev => new Set([...prev, matchId]))
+      if (wasChanged) setChangedPredictions(prev => new Set(Array.from(prev).concat(matchId)))
     }
   }, [userId, matches, predictions])
 
   const stageMatches = matches.filter(m => m.stage === activeStage)
-  const groups = [...new Set(matches.filter(m => m.stage === 'group').map(m => m.group_name!))].sort()
-  const visibleMatches = activeStage === 'group'
-    ? stageMatches.filter(m => m.group_name === activeGroup)
-    : stageMatches
+  const visibleMatches = stageMatches
 
   if (loading) {
     return (
@@ -120,12 +111,10 @@ export default function PredictionsPage() {
   return (
     <div className="min-h-screen bg-pitch-900">
       <Navbar username={username} />
-
       <div className="max-w-2xl mx-auto px-4 py-6">
         <h1 className="font-display text-3xl text-white mb-1">توقعاتك</h1>
         <p className="text-slate-500 text-sm mb-6">احفظ توقعاتك قبل بداية كل ماتش</p>
 
-        {/* Stage tabs */}
         <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
           {STAGE_ORDER.map(stage => {
             const stageCount = matches.filter(m => m.stage === stage).length
@@ -145,25 +134,6 @@ export default function PredictionsPage() {
           })}
         </div>
 
-        {/* Group tabs */}
-        {activeStage === 'group' && (
-          <div className="flex gap-2 flex-wrap mb-5">
-            {groups.map(g => (
-              <button
-                key={g}
-                onClick={() => setActiveGroup(g)}
-                className={`w-9 h-9 rounded-lg text-sm font-bold transition-colors
-                  ${activeGroup === g
-                    ? 'bg-pitch-700 text-gold-400 border border-gold-500/50'
-                    : 'bg-pitch-800 text-slate-500 hover:text-slate-300 border border-pitch-700'}`}
-              >
-                {g}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Matches */}
         <div className="space-y-3">
           {visibleMatches.map(match => (
             <MatchCard
