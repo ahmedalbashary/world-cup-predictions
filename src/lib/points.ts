@@ -44,8 +44,8 @@ const actualWinner = match.result_a! > match.result_b!
     : 'draw'
 
   // For knockout: actual winner considers penalty winner if draw
-  const actualKnockoutWinner = match.stage !== 'group' && actualWinner === 'draw'
-    ? match.penalty_winner
+const actualKnockoutWinner = actualWinner === 'draw'
+  ? match.penalty_winner
     : actualWinner
 
   // Predicted winner
