@@ -56,8 +56,8 @@ const actualKnockoutWinner = actualWinner === 'draw'
     : 'draw'
 
   // For knockout: predicted winner from penalty
-  const predictedKnockoutWinner = match.stage !== 'group' && predictedWinner === 'draw'
-    ? prediction.pred_winner
+const predictedKnockoutWinner = predictedWinner === 'draw'
+  ? prediction.pred_winner
     : predictedWinner
 
   // Check winner
