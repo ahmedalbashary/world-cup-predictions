@@ -1,16 +1,5 @@
 import type { Match, Prediction } from './supabase'
 
-/**
- * Points system:
- * - Correct winner: r32=1, r16=2, qf=3, sf=4, third=5, final=5
- * - Correct goals team A: +1 pt
- * - Correct goals team B: +1 pt
- *
- * If user CHANGED prediction after r32 ended:
- * - Winner correct in any stage = 1pt (r32) or 2pt (r16+)
- * - No goals points for changed predictions
- */
-
 export type StageMultiplier = {
   winner: number
   winner_changed: number
@@ -36,40 +25,32 @@ export function calculatePoints(
   let points = 0
   const multiplier = STAGE_POINTS[match.stage]
 
-  // Determine actual match winner
-const actualWinner = match.result_a! > match.result_b!
-  ? match.team_a
-: match.result_b! > match.result_a!
-  ? match.team_b
+  const actualWinner = match.result_a! > match.result_b!
+    ? match.team_a
+    : match.result_b! > match.result_a!
+    ? match.team_b
     : 'draw'
 
-  // For knockout: actual winner considers penalty winner if draw
-const actualKnockoutWinner = actualWinner === 'draw'
-  ? match.penalty_winner
+  const actualFinalWinner = actualWinner === 'draw'
+    ? match.penalty_winner
     : actualWinner
 
-  // Predicted winner
   const predictedWinner = prediction.pred_a > prediction.pred_b
     ? match.team_a
     : prediction.pred_b > prediction.pred_a
     ? match.team_b
     : 'draw'
 
-  // For knockout: predicted winner from penalty
-const predictedKnockoutWinner = predictedWinner === 'draw'
-  ? prediction.pred_winner
+  const predictedFinalWinner = predictedWinner === 'draw'
+    ? prediction.pred_winner
     : predictedWinner
 
-  // Check winner
-const winnerCorrect = predictedKnockoutWinner === actualKnockoutWinner
-  ? predictedWinner === actualWinner
-    : predictedKnockoutWinner === actualKnockoutWinner
+  const winnerCorrect = predictedFinalWinner === actualFinalWinner
 
   if (winnerCorrect) {
     points += wasChanged ? multiplier.winner_changed : multiplier.winner
   }
 
-  // Check individual goals (only if NOT changed - original prediction)
   if (!wasChanged) {
     if (prediction.pred_a === match.result_a) points += 1
     if (prediction.pred_b === match.result_b) points += 1
