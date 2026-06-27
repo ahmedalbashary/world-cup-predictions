@@ -33,7 +33,7 @@ export type Match = {
   team_b: string
   team_a_flag: string
   team_b_flag: string
-  stage: 'group' | 'r16' | 'qf' | 'sf' | 'third' | 'final'
+  stage: 'r32' | 'r16' | 'qf' | 'sf' | 'third' | 'final'
   group_name?: string
   match_number: number
   kickoff_time: string // ISO string
