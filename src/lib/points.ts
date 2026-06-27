@@ -2,18 +2,13 @@ import type { Match, Prediction } from './supabase'
 
 /**
  * Points system:
- * - Correct winner (or draw): 1 pt (group), 2 pts (R16), 3 pts (QF+)
- * - Correct goals for team A: 1 pt
- * - Correct goals for team B: 1 pt
- * - Correct penalty winner (knockout only): 1 pt
+ * - Correct winner: r32=1, r16=2, qf=3, sf=4, third=5, final=5
+ * - Correct goals team A: +1 pt
+ * - Correct goals team B: +1 pt
  *
- * If user CHANGED prediction after group stage ended:
- * - QF winner correct: 1 pt (not 3)
- * - SF winner correct: 1 pt (not 2) ... wait, let me re-read the rules
- *
- * Original rules:
- * - Changed prediction for R16 → winner correct = 1pt (was 2pt)
- * - Changed prediction for QF → winner correct = 2pt (was 3pt)
+ * If user CHANGED prediction after r32 ended:
+ * - Winner correct in any stage = 1pt (r32) or 2pt (r16+)
+ * - No goals points for changed predictions
  */
 
 export type StageMultiplier = {
@@ -22,12 +17,12 @@ export type StageMultiplier = {
 }
 
 export const STAGE_POINTS: Record<Match['stage'], StageMultiplier> = {
-  group: { winner: 1, winner_changed: 1 },
+  r32:   { winner: 1, winner_changed: 1 },
   r16:   { winner: 2, winner_changed: 1 },
   qf:    { winner: 3, winner_changed: 2 },
-  sf:    { winner: 3, winner_changed: 2 },
-  third: { winner: 3, winner_changed: 2 },
-  final: { winner: 3, winner_changed: 2 },
+  sf:    { winner: 4, winner_changed: 2 },
+  third: { winner: 5, winner_changed: 2 },
+  final: { winner: 5, winner_changed: 2 },
 }
 
 export function calculatePoints(
@@ -42,10 +37,10 @@ export function calculatePoints(
   const multiplier = STAGE_POINTS[match.stage]
 
   // Determine actual match winner
-const actualWinner = match.result_a! > match.result_b!
-  ? match.team_a
-: match.result_b! > match.result_a!
-  ? match.team_b
+  const actualWinner = match.result_a > match.result_b
+    ? match.team_a
+    : match.result_b > match.result_a
+    ? match.team_b
     : 'draw'
 
   // For knockout: actual winner considers penalty winner if draw
