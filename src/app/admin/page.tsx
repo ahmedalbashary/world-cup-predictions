@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { calculatePoints } from '@/lib/points'
-import { Shield, Save, RefreshCw } from 'lucide-react'
+import { Shield, Save, RefreshCw, Unlock, Lock } from 'lucide-react'
 import type { Match, Prediction } from '@/lib/supabase'
 
 export default function AdminPage() {
@@ -14,6 +14,7 @@ export default function AdminPage() {
   const [saving, setSaving] = useState<number | null>(null)
   const [recalculating, setRecalculating] = useState(false)
   const [activeStage, setActiveStage] = useState<Match['stage']>('r32')
+  const [feedback, setFeedback] = useState<Record<number, string>>({})
 
   const ADMIN_PW = process.env.NEXT_PUBLIC_ADMIN_PW || 'admin123'
 
@@ -29,12 +30,27 @@ export default function AdminPage() {
 
   const loadMatches = async () => {
     const { data } = await supabase.from('matches').select('*').order('match_number')
-    if (data) setMatches(data)
+    if (data) {
+      setMatches(data)
+      // Initialize editing state with existing results
+      const initEditing: Record<number, { a: string; b: string; penWinner: string }> = {}
+      data.forEach((m: Match) => {
+        initEditing[m.id] = {
+          a: m.result_a?.toString() ?? '',
+          b: m.result_b?.toString() ?? '',
+          penWinner: m.penalty_winner ?? '',
+        }
+      })
+      setEditing(initEditing)
+    }
   }
 
   const handleResult = async (match: Match) => {
     const ed = editing[match.id]
-    if (!ed || ed.a === '' || ed.b === '') return
+    if (!ed || ed.a === '' || ed.b === '') {
+      setFeedback(prev => ({ ...prev, [match.id]: '❌ ادخل النتيجة الأول' }))
+      return
+    }
 
     setSaving(match.id)
 
@@ -44,7 +60,7 @@ export default function AdminPage() {
     const winner = isDraw ? 'draw' : resultA > resultB ? match.team_a : match.team_b
     const penWinner = isDraw ? ed.penWinner : null
 
-    await supabase.from('matches').update({
+    const { error } = await supabase.from('matches').update({
       result_a: resultA,
       result_b: resultB,
       winner,
@@ -52,19 +68,37 @@ export default function AdminPage() {
       status: 'finished',
     }).eq('id', match.id)
 
+    if (error) {
+      setFeedback(prev => ({ ...prev, [match.id]: '❌ فشل الحفظ: ' + error.message }))
+    } else {
+      setFeedback(prev => ({ ...prev, [match.id]: '✅ اتحفظ!' }))
+      setTimeout(() => setFeedback(prev => ({ ...prev, [match.id]: '' })), 3000)
+    }
+
     await loadMatches()
     setSaving(null)
   }
 
-  const lockMatch = async (matchId: number) => {
-    await supabase.from('matches').update({ status: 'locked' }).eq('id', matchId)
+  const toggleLock = async (match: Match) => {
+    const newStatus = match.status === 'locked' ? 'upcoming' : 'locked'
+    await supabase.from('matches').update({ status: newStatus }).eq('id', match.id)
+    await loadMatches()
+  }
+
+  const updateTeamName = async (matchId: number, field: 'team_a' | 'team_b', value: string) => {
+    await supabase.from('matches').update({ [field]: value }).eq('id', matchId)
     await loadMatches()
   }
 
   const recalculateAllPoints = async () => {
     setRecalculating(true)
 
-    const finishedMatches = matches.filter(m => m.status === 'finished')
+    const { data: finishedMatches } = await supabase
+      .from('matches')
+      .select('*')
+      .eq('status', 'finished')
+
+    if (!finishedMatches) { setRecalculating(false); return }
 
     for (const match of finishedMatches) {
       const { data: preds } = await supabase
@@ -81,12 +115,17 @@ export default function AdminPage() {
     }
 
     // Recalculate total points per user
-    const { data: allPreds } = await supabase.from('predictions').select('user_id, points_earned')
+    const { data: allPreds } = await supabase
+      .from('predictions')
+      .select('user_id, points_earned')
+
     if (allPreds) {
       const totals: Record<string, number> = {}
-      allPreds.forEach(p => {
-        totals[p.user_id] = (totals[p.user_id] || 0) + (p.points_earned || 0)
+      allPreds.forEach((p: { user_id: string; points_earned: number | null }) => {
+        if (!totals[p.user_id]) totals[p.user_id] = 0
+        totals[p.user_id] += p.points_earned || 0
       })
+
       for (const [userId, total] of Object.entries(totals)) {
         await supabase.from('profiles').update({ total_points: total }).eq('id', userId)
       }
@@ -162,61 +201,87 @@ export default function AdminPage() {
         {/* Matches list */}
         <div className="space-y-3">
           {stageMatches.map(match => {
-            const ed = editing[match.id] || { a: match.result_a?.toString() ?? '', b: match.result_b?.toString() ?? '', penWinner: match.penalty_winner ?? '' }
-            const isDraw = Number(ed.a) === Number(ed.b)
-            const isKnockout = true // all stages are knockout
+            const ed = editing[match.id] || { a: '', b: '', penWinner: '' }
+            const isDraw = ed.a !== '' && ed.b !== '' && Number(ed.a) === Number(ed.b)
 
             return (
               <div key={match.id} className="bg-pitch-800 border border-pitch-700 rounded-xl p-4">
+                {/* Header */}
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs text-slate-500">#{match.match_number}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full
-                    ${match.status === 'finished' ? 'bg-grass-500/20 text-grass-400'
-                      : match.status === 'locked' ? 'bg-amber-500/20 text-amber-400'
-                      : 'bg-pitch-700 text-slate-400'}`}>
-                    {match.status === 'finished' ? 'انتهى' : match.status === 'locked' ? 'مقفول' : 'قادم'}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <span className="flex-1 text-white text-sm text-center">{match.team_a}</span>
-
+                  <span className="text-xs text-slate-500">ماتش #{match.match_number}</span>
                   <div className="flex items-center gap-2">
-                    <input type="number" min={0} max={20} value={ed.a}
-                      onChange={e => setEditing(prev => ({ ...prev, [match.id]: { ...ed, a: e.target.value } }))}
-                      className="w-12 h-10 text-center bg-pitch-900 border border-pitch-700 rounded-lg text-white font-bold focus:outline-none focus:border-gold-500"
-                    />
-                    <span className="text-slate-600">-</span>
-                    <input type="number" min={0} max={20} value={ed.b}
-                      onChange={e => setEditing(prev => ({ ...prev, [match.id]: { ...ed, b: e.target.value } }))}
-                      className="w-12 h-10 text-center bg-pitch-900 border border-pitch-700 rounded-lg text-white font-bold focus:outline-none focus:border-gold-500"
-                    />
+                    {feedback[match.id] && (
+                      <span className="text-xs text-gold-400">{feedback[match.id]}</span>
+                    )}
+                    <span className={`text-xs px-2 py-0.5 rounded-full
+                      ${match.status === 'finished' ? 'bg-grass-500/20 text-grass-400'
+                        : match.status === 'locked' ? 'bg-amber-500/20 text-amber-400'
+                        : 'bg-pitch-700 text-slate-400'}`}>
+                      {match.status === 'finished' ? 'انتهى' : match.status === 'locked' ? 'مقفول' : 'قادم'}
+                    </span>
                   </div>
-
-                  <span className="flex-1 text-white text-sm text-center">{match.team_b}</span>
                 </div>
 
-                {isKnockout && isDraw && ed.a !== '' && ed.b !== '' && (
-                  <div className="mt-3 flex gap-2">
+                {/* Team names - editable */}
+                <div className="flex items-center gap-3 mb-3">
+                  <input
+                    defaultValue={match.team_a}
+                    onBlur={e => { if (e.target.value !== match.team_a) updateTeamName(match.id, 'team_a', e.target.value) }}
+                    className="flex-1 text-center text-sm bg-pitch-900 border border-pitch-700 rounded-lg px-2 py-1.5 text-white focus:outline-none focus:border-gold-500/50"
+                  />
+                  <span className="text-slate-600 font-bold">vs</span>
+                  <input
+                    defaultValue={match.team_b}
+                    onBlur={e => { if (e.target.value !== match.team_b) updateTeamName(match.id, 'team_b', e.target.value) }}
+                    className="flex-1 text-center text-sm bg-pitch-900 border border-pitch-700 rounded-lg px-2 py-1.5 text-white focus:outline-none focus:border-gold-500/50"
+                  />
+                </div>
+
+                {/* Score inputs */}
+                <div className="flex items-center justify-center gap-3 mb-3">
+                  <input type="number" min={0} max={20} value={ed.a}
+                    onChange={e => setEditing(prev => ({ ...prev, [match.id]: { ...ed, a: e.target.value } }))}
+                    className="w-16 h-12 text-center text-xl bg-pitch-900 border border-pitch-700 rounded-lg text-white font-bold focus:outline-none focus:border-gold-500"
+                    placeholder="0"
+                  />
+                  <span className="text-slate-600 text-xl font-bold">-</span>
+                  <input type="number" min={0} max={20} value={ed.b}
+                    onChange={e => setEditing(prev => ({ ...prev, [match.id]: { ...ed, b: e.target.value } }))}
+                    className="w-16 h-12 text-center text-xl bg-pitch-900 border border-pitch-700 rounded-lg text-white font-bold focus:outline-none focus:border-gold-500"
+                    placeholder="0"
+                  />
+                </div>
+
+                {/* Penalty winner */}
+                {isDraw && (
+                  <div className="flex gap-2 mb-3">
                     {[match.team_a, match.team_b].map(team => (
-                      <button key={team} onClick={() => setEditing(prev => ({ ...prev, [match.id]: { ...ed, penWinner: team } }))}
+                      <button key={team}
+                        onClick={() => setEditing(prev => ({ ...prev, [match.id]: { ...ed, penWinner: team } }))}
                         className={`flex-1 py-1.5 text-xs rounded-lg border transition-colors
-                          ${ed.penWinner === team ? 'bg-gold-500 text-pitch-900 border-gold-500 font-bold' : 'border-pitch-700 text-slate-400'}`}>
+                          ${ed.penWinner === team ? 'bg-gold-500 text-pitch-900 border-gold-500 font-bold' : 'border-pitch-700 text-slate-400 hover:border-gold-500/50'}`}>
                         {team} (بالركلات)
                       </button>
                     ))}
                   </div>
                 )}
 
-                <div className="flex gap-2 mt-3">
-                  {match.status === 'upcoming' && (
-                    <button onClick={() => lockMatch(match.id)}
-                      className="flex-1 py-1.5 text-xs rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20 transition-colors">
-                      قفّل التوقعات
-                    </button>
-                  )}
-                  <button onClick={() => handleResult(match)} disabled={saving === match.id}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs rounded-lg bg-grass-500/10 text-grass-400 border border-grass-500/30 hover:bg-grass-500/20 disabled:opacity-50 transition-colors">
+                {/* Action buttons */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => toggleLock(match)}
+                    className={`flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-colors
+                      ${match.status === 'locked'
+                        ? 'bg-grass-500/10 text-grass-400 border-grass-500/30 hover:bg-grass-500/20'
+                        : 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20'}`}
+                  >
+                    {match.status === 'locked' ? <><Unlock className="w-3 h-3" /> فتح</> : <><Lock className="w-3 h-3" /> قفّل</>}
+                  </button>
+                  <button
+                    onClick={() => handleResult(match)}
+                    disabled={saving === match.id}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs rounded-lg bg-grass-500/10 text-grass-400 border border-grass-500/30 hover:bg-grass-500/20 disabled:opacity-50 transition-colors"
+                  >
                     <Save className="w-3.5 h-3.5" />
                     {saving === match.id ? 'جاري الحفظ...' : 'حفظ النتيجة'}
                   </button>
