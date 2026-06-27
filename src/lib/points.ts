@@ -61,8 +61,8 @@ const predictedKnockoutWinner = predictedWinner === 'draw'
     : predictedWinner
 
   // Check winner
-  const winnerCorrect = match.stage === 'group'
-    ? predictedWinner === actualWinner
+const winnerCorrect = predictedKnockoutWinner === actualKnockoutWinner
+  ? predictedWinner === actualWinner
     : predictedKnockoutWinner === actualKnockoutWinner
 
   if (winnerCorrect) {
